@@ -1,0 +1,4 @@
+*.csv
+_access.yml
+.ipynb_checkpoins
+__pycache__
