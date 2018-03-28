@@ -1,32 +1,62 @@
-"""Test script WIP."""
+# pylint:disable=C0413, C0103
+"""Get reddit comments."""
+import os
+import sys
+sys.path.append(os.getcwd())
 from datetime import datetime
+import time
+from dateutil.relativedelta import relativedelta
 import yaml
 import pandas as pd
 import numpy as np
 import praw
-from locations import SUBREDDIT_NAMES
-# from src.data.locations import SUBREDDIT_NAMES
+from src.data.locations import SUBREDDIT_NAMES
 
-RATE_LIMIT = 100
+# delay 30 seconds after each RATE_LIMIT
+DELAY = 30
 
-POST_COLUMNS = [
-    'id', 'author', 'created_utc', 'subreddit',
-    'score', 'ups', 'downs', 'gilded', 'num_comments', 'over_18',
-    'selftext', 'title'
-]
+RATE_LIMIT = 1000
+# RATE_LIMIT = 10
+FROM_DATE = datetime.today() - relativedelta(years=1)
 
 COMMENT_COLUMNS = [
     'id', 'author', 'created_utc', 'subreddit',
     'score', 'ups', 'downs', 'gilded',
-    'body'
+    'body', 'distinguished'
 ]
-
-FILE_NAME_SUFFIX = '_' + datetime.now().strftime('%Y%m%d%H%M') + '.csv'
-FILE_NAME_POST = './data/reddit_posts' + FILE_NAME_SUFFIX
-FILE_NAME_COMMENT = './data/reddit_comments' + FILE_NAME_SUFFIX
 
 def main():
     """Run on CLI."""
+    # query until FROM_DATE
+    for subreddit in SUBREDDIT_NAMES:
+        after_date = datetime.today()
+        after = None
+        while after_date > FROM_DATE:
+            print(
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
+                'Starting queries for', after_date
+            )
+            file_name = './data/rc_'\
+                + subreddit + '_'\
+                + datetime.now().strftime('%Y%m%d%H%M%S')\
+                + '.csv'
+            try:
+                after = save_reddit_comments(subreddit, file_name, after)
+                after_date = datetime.fromtimestamp(after.created_utc)
+            except Exception as e:
+                time.sleep(DELAY*5)
+                print(e)
+            if after is None:
+                break
+            time.sleep(DELAY)
+
+
+def asdict(x):
+    """Enable function mapping."""
+    return x.__dict__
+
+def save_reddit_comments(subreddit, file_name, after=None):
+    """Query recent comments on submissions and save to csv."""
     with open('_access.yml', 'r') as f:
         reddit_access = yaml.load(f)['REDDIT']
         reddit_api = praw.Reddit(
@@ -40,50 +70,58 @@ def main():
             datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
             'API access successful.')
 
-    def asdict(x):
-        """Enable function mapping."""
-        return x.__dict__
+    df_all = pd.DataFrame()
+    print(
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
+        'Querying', subreddit, '...')
+    subreddit_api = reddit_api.subreddit(subreddit)
 
-    df_all_posts = pd.DataFrame(columns=POST_COLUMNS)
-    df_all_comments = pd.DataFrame(columns=COMMENT_COLUMNS)
-    for subreddit in SUBREDDIT_NAMES:
+    # paginate using after parameter
+    if after:
+        _submissions_generator = subreddit_api.new(
+            limit=RATE_LIMIT,
+            params={'after': after.fullname}
+        )
+    else:
+        _submissions_generator = subreddit_api.new(limit=RATE_LIMIT)
+
+    for ind, submission in enumerate(_submissions_generator):
+        if np.mod(ind, 10) == 0:
+            print(
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
+                '...processing submission', '%06d' % ind, '...')
+        _list_comments = submission.comments.list()
+        if _list_comments:
+            _df_comments = pd.DataFrame(list(map(asdict, _list_comments)))
+            _df_comments = _df_comments[COMMENT_COLUMNS]
+            df_all = df_all.append(_df_comments)
+        after = submission
+
+    try:
+        # remove any duplicates
+        df_all.drop_duplicates('id', inplace=True)
+        # remove new lines from text
+        df_all['body'].replace(
+            r'[\r\n]+', r'\s', regex=True, inplace=True
+        )
+        df_all.to_csv(file_name, index=False)
+    except ValueError as e:
+        print(e)
         print(
             datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
-            'Querying', subreddit, '...')
-        subreddit_api = reddit_api.subreddit(subreddit)
-        _posts = []
-        for ind, post in enumerate(subreddit_api.hot(limit=RATE_LIMIT)):
-            if np.mod(ind, 10) == 0:
-                print(
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
-                    '...processing submission', '%04d' % ind, '...')
-            _posts.append(post)
-            _list_comments = post.comments.list()
-            if len(_list_comments) > 0:
-                _df_comments = pd.DataFrame(list(map(asdict, _list_comments)))
-                _df_comments = _df_comments[COMMENT_COLUMNS]
-                df_all_comments = df_all_comments.append(_df_comments)
-        _df_posts = pd.DataFrame(list(map(asdict, _posts)))
-        _df_posts = _df_posts[POST_COLUMNS]
-        df_all_posts = df_all_posts.append(_df_posts)
+            'Terminating query for', subreddit
+        )
+        return None
 
-    df_all_posts.drop_duplicates('id', inplace=True)
-    df_all_comments.drop_duplicates('id', inplace=True)
 
-    # remove new lines from text
-    df_all_posts['selftext'].replace(r'\n', r'\s', regex=True, inplace=True)
-    df_all_comments['body'].replace(r'\n', r'\s', regex=True, inplace=True)
-
-    df_all_posts.to_csv(FILE_NAME_POST, index=False)
-    df_all_comments.to_csv(FILE_NAME_COMMENT, index=False)
     print(
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
         'Complete.')
     print(
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
-        'Processed', df_all_posts.shape[0],
-        'posts and', df_all_comments.shape[0], 'comments.')
-    # datetime.fromtimestamp(_post.created_utc)
+        'Processed', df_all.shape[0], 'comments.')
+
+    return after
 
 if __name__ == '__main__':
     main()
