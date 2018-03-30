@@ -1,5 +1,5 @@
 *.csv
 _access.yml
-.ipynb_checkpoins
+.ipynb_checkpoints
 __pycache__
 wip
