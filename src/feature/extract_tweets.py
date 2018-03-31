@@ -92,7 +92,7 @@ def extract_features(tweets):
     tweets['num_words'] = tweets['words'].map(len)
     # identify swear words
     bwrds = BadWords()
-    tweets['badwords'] = tweets['words'].map(bwrds.print_badwords)
+    tweets['badwords'] = tweets['words'].map(bwrds.find_badwords)
     # count swear words
     tweets['num_badwords'] = tweets['badwords'].map(len)
 
@@ -119,6 +119,14 @@ def main():
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
         'Writing features to a file.'
     )
+
+    tweets['words'] = tweets['words'].map(
+        lambda x: ';'.join(x)
+    )
+    tweets['badwords'] = tweets['badwords'].map(
+        lambda x: ';'.join(x)
+    )
+
     tweets.to_csv(WRITE_FILE_NAME, index=False)
     print(
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
