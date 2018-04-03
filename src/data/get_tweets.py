@@ -10,7 +10,7 @@ import yaml
 import twitter
 import pandas as pd
 import numpy as np
-from src.data.locations import CITIES, GEOCODES
+from src.utils import CITIES, GEOCODES
 
 RATE_LIMIT = 180
 # RATE_LIMIT = 10
@@ -103,7 +103,7 @@ def save_tweets(term, file_name):
     df_all.drop_duplicates('id', inplace=True)
 
     # remove new lines from text
-    df_all['text'].replace({r'[\r\n]+': r'\s'}, regex=True, inplace=True)
+    df_all['text'].replace({r'[\r\n]+': r' '}, regex=True, inplace=True)
     df_all.to_csv(file_name, index=False)
     print(
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),

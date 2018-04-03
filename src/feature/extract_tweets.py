@@ -4,12 +4,11 @@ import os
 import sys
 sys.path.append(os.getcwd())
 from datetime import datetime
-import re
 import glob
 import pytz
 import pandas as pd
 from nltk.tokenize import TweetTokenizer
-from src.utils import TIMEZONES
+from src.utils import TIMEZONES, is_word
 from src.utils.badwords import BadWords
 
 READ_FILE_NAME = './data/tweets_'
@@ -25,10 +24,8 @@ TWEET_TOKENIZER = TweetTokenizer(
     strip_handles=True
 )
 
-def is_word(token):
-    """Check if a token is a word including hashtags."""
-    pattern = r'^(?!rt|https?://)(#?[\w]+)'
-    return True if re.match(pattern, token) else False
+# bad word identifier
+BAD_WORDS = BadWords()
 
 def extract_features(tweets):
     """Extract features."""
@@ -72,12 +69,11 @@ def extract_features(tweets):
     for other in btm_95pct_sources.index:
         tweets['source'].replace({other: 'Other'}, inplace=True)
 
-    # remove new lines from tweets
     print(
         datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
         'Extracting texts.'
     )
-    tweets['text'].replace({r'\n': r'\s'}, regex=True, inplace=True)
+    tweets['text'].replace({r'\\s': ' '}, regex=True, inplace=True)
 
     # tokenize text
     tweets['words'] = tweets['text'].map(
@@ -90,10 +86,9 @@ def extract_features(tweets):
 
     # count total words
     tweets['num_words'] = tweets['words'].map(len)
-    # identify swear words
-    bwrds = BadWords()
-    tweets['badwords'] = tweets['words'].map(bwrds.find_badwords)
-    # count swear words
+    # identify bad words
+    tweets['badwords'] = tweets['words'].map(BAD_WORDS.find_badwords)
+    # count bad words
     tweets['num_badwords'] = tweets['badwords'].map(len)
 
     tweets.drop(['created_at', 'id', 'text'], axis=1, inplace=True)
@@ -120,12 +115,8 @@ def main():
         'Writing features to a file.'
     )
 
-    tweets['words'] = tweets['words'].map(
-        lambda x: ';'.join(x)
-    )
-    tweets['badwords'] = tweets['badwords'].map(
-        lambda x: ';'.join(x)
-    )
+    tweets['words'] = tweets['words'].map(';'.join)
+    tweets['badwords'] = tweets['badwords'].map(';'.join)
 
     tweets.to_csv(WRITE_FILE_NAME, index=False)
     print(

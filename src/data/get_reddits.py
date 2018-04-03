@@ -10,7 +10,7 @@ import yaml
 import pandas as pd
 import numpy as np
 import praw
-from src.data.locations import SUBREDDIT_NAMES
+from src.utils import SUBREDDIT_NAMES
 
 # delay 30 seconds after each RATE_LIMIT
 DELAY = 30
@@ -102,7 +102,7 @@ def save_reddit_comments(subreddit, file_name, after=None):
         df_all.drop_duplicates('id', inplace=True)
         # remove new lines from text
         df_all['body'].replace(
-            r'[\r\n]+', r'\s', regex=True, inplace=True
+            r'[\r\n]+', r' ', regex=True, inplace=True
         )
         df_all.to_csv(file_name, index=False)
     except ValueError as e:
