@@ -31,8 +31,6 @@ DATES = [
     for x in range(7)
 ]
 
-
-
 def main():
     """Run on CLI."""
     for date in DATES:

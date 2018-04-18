@@ -91,7 +91,7 @@ def extract_features(tweets):
     # count bad words
     tweets['num_badwords'] = tweets['badwords'].map(len)
 
-    tweets.drop(['created_at', 'id', 'text'], axis=1, inplace=True)
+    tweets.drop(['created_at', 'id'], axis=1, inplace=True)
 
     return tweets
 

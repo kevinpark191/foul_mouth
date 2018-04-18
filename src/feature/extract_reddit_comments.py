@@ -96,8 +96,16 @@ def main():
         reddit_comments = reddit_comments.append(pd.read_csv(f))
 
     reddit_comments = extract_features(reddit_comments)
+    print(
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
+        'Writing features to a file.'
+    )
 
-    reddit_comments.to_csv(WRITE_FILE_NAME)
+    reddit_comments.to_csv(WRITE_FILE_NAME, index=False)
+    print(
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S -'),
+        'Process completed.'
+    )
 
 if __name__ == '__main__':
     main()

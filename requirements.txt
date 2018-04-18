@@ -2,3 +2,4 @@ pyyaml
 praw
 python-twitter
 pandas
+bokeh

@@ -17,7 +17,10 @@ class BadWords():
             'git',
             'knob',
             'wang',
-            'willy'
+            'willy',
+            'lust',
+            'lusting',
+            'lesbian'
         ])
 
     def _get_badwords_full(self):
